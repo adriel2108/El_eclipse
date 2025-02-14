@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eclipse Solar Realista</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        canvas {
+            border: 1px solid #333;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            max-width: 600px;
+            width: 100%;
+            backdrop-filter: blur(5px);
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4a90e2;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            color: white;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #357abd;
+        }
+        label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+        input[type="range"] {
+            width: 150px;
+        }
+        .info-panel {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+            width: 100%;
+            max-width: 600px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="eclipseCanvas" width="800" height="400"></canvas>
+    
+    <div class="controls">
+        <div class="control-group">
+            <button id="startBtn">Iniciar/Pausar</button>
+            <button id="resetBtn">Reiniciar</button>
+        </div>
+        
+        <div class="control-group">
+            <label>
+                Velocidad:
+                <input type="range" id="speedControl" min="1" max="10" value="2">
+            </label>
+            <label>
+                Intensidad Corona:
+                <input type="range" id="coronaControl" min="0" max="100" value="70">
+            </label>
+            <label>
+                Brillo Atmosférico:
+                <input type="range" id="atmosphereControl" min="0" max="100" value="60">
+            </label>
+        </div>
+    </div>
+
+    <div class="info-panel">
+        <div id="phaseInfo">Fase: Preparando eclipse</div>
+        <div id="timeInfo">Tiempo hasta totalidad: --:--</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('eclipseCanvas');
+        const ctx = canvas.getContext('2d');
+        const controls = {
+            start: document.getElementById('startBtn'),
+            reset: document.getElementById('resetBtn'),
+            speed: document.getElementById('speedControl'),
+            corona: document.getElementById('coronaControl'),
+            atmosphere: document.getElementById('atmosphereControl')
+        };
+        const phaseInfo = document.getElementById('phaseInfo');
+        const timeInfo = document.getElementById('timeInfo');
+
+        let sunRadius = 80;
+        let moonRadius = 81;
+        let moonX = -moonRadius;
+        let moonY = canvas.height / 2;
+        let isAnimating = true;
+        let stars = [];
+
+        // Generar estrellas aleatorias
+        for(let i = 0; i < 200; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2,
+                brightness: Math.random()
+            });
+        }
+
+        function drawStars(intensity) {
+            stars.forEach(star => {
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness * intensity})`;
+                ctx.fill();
+            });
+        }
+
+        function drawSun() {
+            // Corona solar
+            const coronaIntensity = Number(controls.corona.value) / 100;
+            const gradient = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, sunRadius,
+                canvas.width / 2, canvas.height / 2, sunRadius * 3
+            );
+            gradient.addColorStop(0, 'rgba(255, 230, 160, ' + coronaIntensity + ')');
+            gradient.addColorStop(0.1, 'rgba(255, 200, 120, ' + (coronaIntensity * 0.8) + ')');
+            gradient.addColorStop(0.2, 'rgba(255, 160, 80, ' + (coronaIntensity * 0.6) + ')');
+            gradient.addColorStop(1, 'rgba(255, 140, 50, 0)');
+
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, canvas.height / 2, sunRadius * 3, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            // Disco solar
+            const sunGradient = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, 0,
+                canvas.width / 2, canvas.height / 2, sunRadius
+            );
+            sunGradient.addColorStop(0, '#fff7e6');
+            sunGradient.addColorStop(0.8, '#ffdd99');
+            sunGradient.addColorStop(1, '#ffcc66');
+
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, canvas.height / 2, sunRadius, 0, Math.PI * 2);
+            ctx.fillStyle = sunGradient;
+            ctx.fill();
+        }
+
+        function drawMoon() {
+            const moonGradient = ctx.createRadialGradient(
+                moonX, moonY, 0,
+                moonX, moonY, moonRadius
+            );
+            moonGradient.addColorStop(0, '#333333');
+            moonGradient.addColorStop(0.8, '#222222');
+            moonGradient.addColorStop(1, '#111111');
+
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
+            ctx.fillStyle = moonGradient;
+            ctx.fill();
+        }
+
+        function drawAtmosphere() {
+            const atmosphereIntensity = Number(controls.atmosphere.value) / 100;
+            const centerX = canvas.width / 2;
+            const distance = Math.abs(moonX - centerX);
+            const coverage = Math.max(0, Math.min(1, 1 - (distance / (sunRadius * 2))));
+            
+            // Simular el oscurecimiento del cielo
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            const brightness = 1 - (coverage * atmosphereIntensity);
+            skyGradient.addColorStop(0, `rgba(0, 10, 40, ${brightness})`);
+            skyGradient.addColorStop(1, `rgba(0, 0, 20, ${brightness})`);
+            
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function updatePhaseInfo() {
+            const centerX = canvas.width / 2;
+            const distance = Math.abs(moonX - centerX);
+            const coverage = Math.max(0, Math.min(100, 100 - (distance / sunRadius * 50)));
+            
+            if (distance < 10) {
+                phaseInfo.textContent = "Fase: Eclipse Total";
+            } else if (coverage > 0) {
+                phaseInfo.textContent = `Fase: Eclipse Parcial (${coverage.toFixed(1)}% cubierto)`;
+            } else {
+                phaseInfo.textContent = "Fase: Sin Eclipse";
+            }
+
+            // Calcular tiempo estimado hasta totalidad
+            if (moonX < centerX) {
+                const timeToTotal = ((centerX - moonX) / Number(controls.speed.value) / 60).toFixed(1);
+                timeInfo.textContent = `Tiempo estimado hasta totalidad: ${timeToTotal} segundos`;
+            } else {
+                timeInfo.textContent = "Eclipse en progreso";
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Dibujar en orden de capas
+            drawAtmosphere();
+            
+            const centerX = canvas.width / 2;
+            const distance = Math.abs(moonX - centerX);
+            const coverage = Math.max(0, Math.min(1, 1 - (distance / (sunRadius * 2))));
+            
+            // Mostrar estrellas basado en la cobertura
+            drawStars(coverage);
+            
+            drawSun();
+            drawMoon();
+            updatePhaseInfo();
+        }
+
+        function animate() {
+            if (isAnimating) {
+                moonX += Number(controls.speed.value);
+                
+                if (moonX > canvas.width + moonRadius) {
+                    moonX = -moonRadius;
+                }
+                
+                draw();
+            }
+            requestAnimationFrame(animate);
+        }
+
+        // Event Listeners
+        controls.start.addEventListener('click', () => {
+            isAnimating = !isAnimating;
+            controls.start.textContent = isAnimating ? "Pausar" : "Continuar";
+        });
+
+        controls.reset.addEventListener('click', () => {
+            moonX = -moonRadius;
+            isAnimating = true;
+            controls.start.textContent = "Pausar";
+            draw();
+        });
+
+        // Iniciar animación
+        animate();
+    </script>
+</body>
+</html>
