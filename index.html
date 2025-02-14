@@ -1,1 +1,147 @@
-<h1>El_eclipse_del_sol!</h1>
+<index.html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eclipse Animado Transversal</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #282c34;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 1px solid #fff;
+            margin-bottom: 20px;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #61dafb;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            color: #282c34;
+        }
+        button:hover {
+            background-color: #4fa8c7;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="eclipseCanvas" width="800" height="400"></canvas>
+    <div class="controls">
+        <button id="startBtn">Iniciar/Pausar</button>
+        <button id="resetBtn">Reiniciar</button>
+    </div>
+    <div id="phaseInfo" style="margin-top: 20px; text-align: center;"></div>
+
+    <script>
+        const canvas = document.getElementById('eclipseCanvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const phaseInfo = document.getElementById('phaseInfo');
+
+        let sunRadius = 80;
+        let moonRadius = 82;
+        let moonX = -moonRadius; // Comienza fuera del canvas por la izquierda
+        let moonY = canvas.height / 2;
+        let isAnimating = true;
+        let speed = 2;
+
+        function drawSun() {
+            // Dibujar resplandor del sol
+            const gradient = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, sunRadius * 0.8,
+                canvas.width / 2, canvas.height / 2, sunRadius * 1.2
+            );
+            gradient.addColorStop(0, 'yellow');
+            gradient.addColorStop(1, 'rgba(255, 255, 0, 0)');
+            
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, canvas.height / 2, sunRadius * 1.2, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            // Dibujar el sol
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, canvas.height / 2, sunRadius, 0, Math.PI * 2);
+            ctx.fillStyle = 'yellow';
+            ctx.fill();
+        }
+
+        function drawMoon() {
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
+            ctx.fillStyle = '#333';
+            ctx.fill();
+        }
+
+        function updatePhaseInfo() {
+            const centerX = canvas.width / 2;
+            const distance = Math.abs(moonX - centerX);
+            
+            if (moonX < centerX - sunRadius) {
+                phaseInfo.textContent = "Fase: Aproximación del eclipse";
+            } else if (distance < 10) {
+                phaseInfo.textContent = "Fase: Eclipse total";
+            } else if (moonX > centerX + sunRadius) {
+                phaseInfo.textContent = "Fase: Final del eclipse";
+            } else {
+                phaseInfo.textContent = "Fase: Eclipse parcial";
+            }
+        }
+
+        function drawEclipse() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Dibujar fondo estrellado
+            ctx.fillStyle = '#000033';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            drawSun();
+            drawMoon();
+            updatePhaseInfo();
+        }
+
+        function animate() {
+            if (isAnimating) {
+                moonX += speed;
+                
+                // Reiniciar cuando la luna sale del canvas
+                if (moonX > canvas.width + moonRadius) {
+                    moonX = -moonRadius;
+                }
+                
+                drawEclipse();
+            }
+            requestAnimationFrame(animate);
+        }
+
+        // Controles
+        startBtn.addEventListener('click', () => {
+            isAnimating = !isAnimating;
+        });
+
+        resetBtn.addEventListener('click', () => {
+            moonX = -moonRadius;
+            isAnimating = true;
+            drawEclipse();
+        });
+
+        // Iniciar animación
+        animate();
+    </script>
+</body>
+</html>
